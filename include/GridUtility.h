@@ -27,8 +27,15 @@ void lap_node_to_node(const amrex::MultiFab& srcMF, amrex::MultiFab& dstMF,
 void grad_node_to_center(const amrex::MultiFab& nodeMF,
                          amrex::MultiFab& centerMF, const amrex::Real* invDx);
 
+void grad_node_to_node(const amrex::MultiFab& nodeMF, amrex::MultiFab& gradMF,
+                       const amrex::Real* invDx);
+
 void grad_center_to_node(const amrex::MultiFab& centerMF,
                          amrex::MultiFab& nodeMF, const amrex::Real* invDx);
+
+void jacobian_node_to_node(const amrex::MultiFab& nodeMF,
+                           amrex::MultiFab& jacobianMF,
+                           const amrex::Real* invDx);
 
 void div_center_to_node(const amrex::MultiFab& centerMF,
                         amrex::MultiFab& nodeMF, const amrex::Real* invDx);

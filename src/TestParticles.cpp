@@ -184,64 +184,90 @@ void TestParticles::move_and_save_charged_particles(const MultiFab& nodeEMF,
 
         if (ptRecordSize > iTPdBxdx_) {
           Real gradB[3][3] = { { 0.0 } };
-          // The gradient calculation is based on the derivative of the
-          // trilinear interpolation shape functions. B(x,y,z) = sum_{i,j,k}
-          // B_{i,j,k} * W_i(x) * W_j(y) * W_k(z) dB/dx = sum_{i,j,k} B_{i,j,k}
-          // * (dW_i(x)/dx) * W_j(y) * W_k(z) dW_0/dx = -1/dx, dW_1/dx = 1/dx
-          // W_0(x) = 1-dShift.x, W_1(x) = dShift.x
-          const Real* invDx = Geom(iLev).InvCellSize();
+          if (useJacobianGradient_) {
+            const Box& nodeBox = pti.tilebox();
+            // Create a temporary node-centered MultiFab for the Jacobian
+            MultiFab nodeGradBMF(nodeBox, pti.dm(), 9, 1);
 
-          // B at 8 nodes
-          Real b[3][2][2][2];
-          for (int k = 0; k < 2; ++k)
-            for (int j = 0; j < 2; ++j)
-              for (int i = 0; i < 2; ++i) {
-                IntVect ijk = { AMREX_D_DECL(loIdx[ix_] + i, loIdx[iy_] + j,
-                                             loIdx[iz_] + k) };
-                for (int iDim = 0; iDim < nDim3; iDim++) {
-                  b[iDim][i][j][k] = nodeBArr(ijk, iDim);
+            // Calculate the Jacobian directly from the node-centered B field
+            const Real* invDx = Geom(iLev).InvCellSize();
+            jacobian_node_to_node(nodeBMF, nodeGradBMF, invDx);
+
+            const Array4<Real const>& nodeGradBArr = nodeGradBMF.array(pti);
+
+            // Interpolate the Jacobian to the particle position
+            for (int k = lo.z; k <= hi.z; ++k)
+              for (int j = lo.y; j <= hi.y; ++j)
+                for (int i = lo.x; i <= hi.x; ++i) {
+                  IntVect ijk = { AMREX_D_DECL(loIdx[ix_] + i, loIdx[iy_] + j,
+                                               loIdx[iz_] + k) };
+                  for (int iDim = 0; iDim < 3; iDim++)
+                    for (int jDim = 0; jDim < 3; jDim++) {
+                      gradB[iDim][jDim] +=
+                          nodeGradBArr(ijk, iDim * 3 + jDim) * coef[i][j][k];
+                    }
                 }
-              }
+          } else {
+            // The gradient calculation is based on the derivative of the
+            // trilinear interpolation shape functions. B(x,y,z) = sum_{i,j,k}
+            // B_{i,j,k} * W_i(x) * W_j(y) * W_k(z) dB/dx = sum_{i,j,k}
+            // B_{i,j,k}
+            // * (dW_i(x)/dx) * W_j(y) * W_k(z) dW_0/dx = -1/dx, dW_1/dx = 1/dx
+            // W_0(x) = 1-dShift.x, W_1(x) = dShift.x
+            const Real* invDx = Geom(iLev).InvCellSize();
 
-          Real sx = dShift[ix_];
-          Real sy = dShift[iy_];
-          Real sz = dShift[iz_];
+            // B at 8 nodes
+            Real b[3][2][2][2];
+            for (int k = 0; k < 2; ++k)
+              for (int j = 0; j < 2; ++j)
+                for (int i = 0; i < 2; ++i) {
+                  IntVect ijk = { AMREX_D_DECL(loIdx[ix_] + i, loIdx[iy_] + j,
+                                               loIdx[iz_] + k) };
+                  for (int iDim = 0; iDim < nDim3; iDim++) {
+                    b[iDim][i][j][k] = nodeBArr(ijk, iDim);
+                  }
+                }
 
-          // dB/dx
-          for (int iDim = 0; iDim < nDim3; iDim++) {
-            gradB[iDim][ix_] =
-                (((b[iDim][1][0][0] - b[iDim][0][0][0]) * (1 - sy) +
-                  (b[iDim][1][1][0] - b[iDim][0][1][0]) * sy) *
-                     (1 - sz) +
-                 ((b[iDim][1][0][1] - b[iDim][0][0][1]) * (1 - sy) +
-                  (b[iDim][1][1][1] - b[iDim][0][1][1]) * sy) *
-                     sz) *
-                invDx[ix_];
-          }
-          // dB/dy
-          for (int iDim = 0; iDim < nDim3; iDim++) {
-            gradB[iDim][iy_] =
-                (((b[iDim][0][1][0] - b[iDim][0][0][0]) * (1 - sx) +
-                  (b[iDim][1][1][0] - b[iDim][1][0][0]) * sx) *
-                     (1 - sz) +
-                 ((b[iDim][0][1][1] - b[iDim][0][0][1]) * (1 - sx) +
-                  (b[iDim][1][1][1] - b[iDim][1][0][1]) * sx) *
-                     sz) *
-                invDx[iy_];
-          }
+            Real sx = dShift[ix_];
+            Real sy = dShift[iy_];
+            Real sz = dShift[iz_];
+
+            // dB/dx
+            for (int iDim = 0; iDim < nDim3; iDim++) {
+              gradB[iDim][ix_] =
+                  (((b[iDim][1][0][0] - b[iDim][0][0][0]) * (1 - sy) +
+                    (b[iDim][1][1][0] - b[iDim][0][1][0]) * sy) *
+                       (1 - sz) +
+                   ((b[iDim][1][0][1] - b[iDim][0][0][1]) * (1 - sy) +
+                    (b[iDim][1][1][1] - b[iDim][0][1][1]) * sy) *
+                       sz) *
+                  invDx[ix_];
+            }
+            // dB/dy
+            for (int iDim = 0; iDim < nDim3; iDim++) {
+              gradB[iDim][iy_] =
+                  (((b[iDim][0][1][0] - b[iDim][0][0][0]) * (1 - sx) +
+                    (b[iDim][1][1][0] - b[iDim][1][0][0]) * sx) *
+                       (1 - sz) +
+                   ((b[iDim][0][1][1] - b[iDim][0][0][1]) * (1 - sx) +
+                    (b[iDim][1][1][1] - b[iDim][1][0][1]) * sx) *
+                       sz) *
+                  invDx[iy_];
+            }
 #if (AMREX_SPACEDIM == 3)
-          // dB/dz
-          for (int iDim = 0; iDim < nDim3; iDim++) {
-            gradB[iDim][iz_] =
-                (((b[iDim][0][0][1] - b[iDim][0][0][0]) * (1 - sx) +
-                  (b[iDim][1][0][1] - b[iDim][1][0][0]) * sx) *
-                     (1 - sy) +
-                 ((b[iDim][0][1][1] - b[iDim][0][1][0]) * (1 - sx) +
-                  (b[iDim][1][1][1] - b[iDim][1][1][0]) * sx) *
-                     sy) *
-                invDx[iz_];
-          }
+            // dB/dz
+            for (int iDim = 0; iDim < nDim3; iDim++) {
+              gradB[iDim][iz_] =
+                  (((b[iDim][0][0][1] - b[iDim][0][0][0]) * (1 - sx) +
+                    (b[iDim][1][0][1] - b[iDim][1][0][0]) * sx) *
+                       (1 - sy) +
+                   ((b[iDim][0][1][1] - b[iDim][0][1][0]) * (1 - sx) +
+                    (b[iDim][1][1][1] - b[iDim][1][1][0]) * sx) *
+                       sy) *
+                  invDx[iz_];
+            }
 #endif
+          }
           p.rdata(i0 + iTPdBxdx_) = gradB[0][0];
           p.rdata(i0 + iTPdBxdy_) = gradB[0][1];
           p.rdata(i0 + iTPdBxdz_) = gradB[0][2];

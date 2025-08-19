@@ -59,6 +59,57 @@ void grad_node_to_center(const MultiFab& nodeMF, MultiFab& centerMF,
   }
 }
 
+void grad_node_to_node(const MultiFab& nodeMF, MultiFab& gradMF,
+                       const Real* invDx) {
+  timing_func("grad_node_to_node");
+
+  AMREX_ASSERT(nodeMF.is_nodal());
+  AMREX_ASSERT(gradMF.is_nodal());
+  AMREX_ASSERT(nodeMF.nComp() == 1);
+  AMREX_ASSERT(gradMF.nComp() == 3);
+
+  for (MFIter mfi(gradMF, doTiling); mfi.isValid(); ++mfi) {
+    const Box& box = mfi.validbox();
+    const Array4<Real const>& node = nodeMF.array(mfi);
+    const Array4<Real>& grad = gradMF.array(mfi);
+
+    const Real invDx2x = 0.5 * invDx[0];
+    const Real invDx2y = 0.5 * invDx[1];
+    const Real invDx2z = (nDim > 2) ? 0.5 * invDx[2] : 0.0;
+
+    ParallelFor(box, [=] AMREX_GPU_DEVICE(int i, int j, int k) {
+      grad(i, j, k, 0) = (node(i + 1, j, k) - node(i - 1, j, k)) * invDx2x;
+      grad(i, j, k, 1) = (node(i, j + 1, k) - node(i, j - 1, k)) * invDx2y;
+      if (nDim > 2) {
+        grad(i, j, k, 2) = (node(i, j, k + 1) - node(i, j, k - 1)) * invDx2z;
+      } else {
+        grad(i, j, k, 2) = 0.0;
+      }
+    });
+  }
+}
+
+void jacobian_node_to_node(const MultiFab& nodeMF, MultiFab& jacobianMF,
+                           const Real* invDx) {
+  // Make sure the src is a 3-component, node-centered MultiFab
+  AMREX_ASSERT(nodeMF.nComp() == 3);
+  AMREX_ASSERT(nodeMF.is_nodal());
+  // Make sure the dst is a 9-component, node-centered MultiFab
+  AMREX_ASSERT(jacobianMF.nComp() == 9);
+  AMREX_ASSERT(jacobianMF.is_nodal());
+
+  for (int i = 0; i < 3; ++i) {
+    // Create an alias for the i-th component of the source vector
+    MultiFab nodeAliasMF(nodeMF, make_alias, i, 1);
+    // Create an alias for the i-th row of the Jacobian matrix (3 components)
+    MultiFab jacobianAliasMF(jacobianMF, make_alias, i * 3, 3);
+
+    // Calculate the gradient of the i-th component and store it in the
+    // corresponding row of the Jacobian
+    grad_node_to_node(nodeAliasMF, jacobianAliasMF, invDx);
+  }
+}
+
 void grad_center_to_node(const MultiFab& centerMF, MultiFab& nodeMF,
                          const Real* invDx) {
 

@@ -106,6 +106,8 @@ public:
     }
   }
 
+  void set_use_jacobian_gradient(bool use) { useJacobianGradient_ = use; }
+
   template <typename T> void gather_accumulate_and_scatter(T& local, T& ahead) {
     int nProc = amrex::ParallelDescriptor::NProcs();
 
@@ -156,6 +158,8 @@ private:
   std::vector<PID> vIDs;
 
   Regions tpRegions;
+
+  bool useJacobianGradient_ = false;
 };
 
 #endif
