@@ -1067,6 +1067,24 @@ along the ratial direction. Inside r .le. rCutoff, the density is set
 to rho(rCutoff). 
 </command>
 
+<command name="PICKUPION" alias="PICKUPION_FLEKS0,PICKUPION_FLEKS1,PICKUPION_FLEKS2" multiple="T">
+  <parameter name="regionName" type="string"/>
+  <parameter name="neutralSpecies" type="string"/>
+  <parameter name="neutralDensity" type="real"/>
+  <parameter name="neutralTemperature" type="real"/>
+  <parameter name="photoionizationRate" type="real"/>
+  <parameter name="chargeExchangeCrossSection" type="real"/>
+
+#PICKUPION
++box1 -sphere1		      regionName
+Oxygen                neutralSpecies
+1.0e5                 neutralDensity [amu/cm^3]
+1.0e3                 neutralTemperature [K]
+1.0e-7                photoionizationRate [1/s]
+1.0e-19               chargeExchangeCrossSection [m^2]
+
+This command defines a region that contains neutral species.
+</command>
 
 </commandgroup>
 

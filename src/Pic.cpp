@@ -203,6 +203,9 @@ void Pic::read_param(const std::string& command, ReadParam& param) {
 void Pic::post_process_param() {
   fi->set_plasma_charge_and_mass(qomEl);
   nSpecies = fi->get_nS();
+  if (p_ion.isEnabled) {
+    nSpecies++;
+  }
 }
 
 //==========================================================
@@ -377,6 +380,22 @@ void Pic::post_regrid() {
           this, fi, tc, i, fi->get_species_charge(i), fi->get_species_mass(i),
           nPartPerCell, pMode, testCase));
 
+      sourceParts.push_back(std::move(ptrSource));
+    }
+    if (p_ion.isEnabled) {
+      // Add a new species for the pickup ions
+      int iPickup = nSpecies - 1;
+      Real mass = 16.0; // Assuming Oxygen for now
+      Real charge = 1.0;
+      auto ptr = std::unique_ptr<PicParticles>(new PicParticles(
+          this, fi, tc, iPickup, charge, mass,
+          nPartPerCell, pMode, testCase));
+      ptr->set_info(pInfo);
+      parts.push_back(std::move(ptr));
+
+      auto ptrSource = std::unique_ptr<PicParticles>(new PicParticles(
+          this, fi, tc, iPickup, charge, mass,
+          nPartPerCell, pMode, testCase));
       sourceParts.push_back(std::move(ptrSource));
     }
   } else {

@@ -270,6 +270,8 @@ public:
                           const Vel tpVel = Vel(), amrex::Real dt = -1);
   void inject_particles_at_boundary();
 
+  void add_particle(ParticleType& p, int iLev);
+
   void add_particles_source(const FluidInterface* interface,
                             const FluidInterface* const stateOH = nullptr,
                             amrex::Real dt = -1,

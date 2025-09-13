@@ -21,7 +21,7 @@ include/Constants.h: include/Constants.h.orig
 GITINFO: include/show_git_info.h
 	${SCRIPTDIR}/gitall -r=c > include/show_git_info.h
 
-FLEKS: GITINFO 
+FLEKS:
 	cd src; ${MAKE} EXE
 
 bin:

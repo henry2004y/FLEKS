@@ -1,0 +1,37 @@
+CXX = g++
+CXXFLAGS = -I../include -I../util/AMREX/InstallDir/include -I../share/Library/src
+LDFLAGS = -L../util/AMREX/InstallDir/lib -lamrex -lFLEKS
+
+SRCS = \
+	Domain.cpp \
+	ParticleTracker.cpp \
+	Particles.cpp \
+	TestParticles.cpp \
+	LinearSolver.cpp \
+	GridUtility.cpp \
+	PlotWriter.cpp \
+	TimeCtr.cpp \
+	BC.cpp \
+	FluidInterface.cpp \
+	Pic.cpp \
+	PicIO.cpp \
+	Grid.cpp  \
+	DataContainer.cpp \
+	VisitWriter.cpp  \
+	FleksDistributionMap.cpp \
+	main.cpp
+
+OBJS = $(SRCS:.cpp=.o)
+
+TARGET = FLEKS
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
+
+.cpp.o:
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+clean:
+	rm -f $(OBJS) $(TARGET)

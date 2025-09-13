@@ -63,6 +63,22 @@ Particles<NStructReal, NStructInt>::Particles(
 
 //==========================================================
 template <int NStructReal, int NStructInt>
+void Particles<NStructReal, NStructInt>::add_particle(ParticleType& p, int iLev) {
+    IntVect iv = Index(p, iLev);
+    // This is a dummy MFIter. We just need it to get the tile index.
+    // The tile index depends on the grid and the distribution mapping.
+    // The MFIter is created with tiling enabled.
+    for (MFIter mfi = MakeMFIter(iLev, true); mfi.isValid(); ++mfi) {
+      if (mfi.tilebox().contains(iv)) {
+        auto& p_tile = get_particle_tile(iLev, mfi, iv);
+        p_tile.push_back(p);
+        break;
+      }
+    }
+}
+
+//==========================================================
+template <int NStructReal, int NStructInt>
 void Particles<NStructReal, NStructInt>::outflow_bc(const MFIter& mfi,
                                                     const IntVect ijkGst,
                                                     const IntVect ijkPhy) {

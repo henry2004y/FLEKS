@@ -18,6 +18,17 @@
 
 class ParticleTracker;
 class Pic;
+class Regions;
+
+struct PickupIon {
+  std::string regionName;
+  std::string neutralSpecies;
+  amrex::Real neutralDensity;
+  amrex::Real neutralTemperature;
+  amrex::Real photoionizationRate;
+  amrex::Real chargeExchangeCrossSection;
+  bool isEnabled = false;
+};
 
 class FieldSolver {
 public:
@@ -146,6 +157,9 @@ private:
 
   OHIon ionOH;
 
+  PickupIon p_ion;
+  Regions* neutralRegion = nullptr;
+
   // Boundary conditions for particles.
   amrex::Vector<BC> pBCs;
 
@@ -252,6 +266,8 @@ public:
   //----------------Initialization end-------------------------------
 
   void charge_exchange();
+
+  void pickup_ion();
 
   void sum_moments(bool updateDt = false);
 

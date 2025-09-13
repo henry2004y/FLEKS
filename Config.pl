@@ -23,7 +23,7 @@ my $GITCLONE = "git clone"; my $GITDIR = "git\@github.com:SWMFsoftware";
 
 if (not -f $config and not -f "../../$config"){
     # Stand-alone
-    `$GITCLONE $GITDIR/share; $GITCLONE $GITDIR/util`;    
+    #`$GITCLONE $GITDIR/share; $GITCLONE $GITDIR/util`;
 }
 
 my $AmrexDir = "util/AMREX";
