@@ -986,47 +986,10 @@ void Particles<NStructReal, NStructInt>::calc_mass_matrix(
       const Real omz = qdto2mc * bp[iz_];
 
       // end interpolation
-      const Real omx2 = omx * omx;
-      const Real omy2 = omy * omy;
-      const Real omz2 = omz * omz;
-      const Real omxomy = omx * omy;
-      const Real omxomz = omx * omz;
-      const Real omyomz = omy * omz;
-      const Real omsq = omx2 + omy2 + omz2;
-      const Real denom = 1.0 / (1.0 + omsq);
-
-      const Real c0 = denom * invVol[iLev] * qp * qdto2mc;
-
       Real alpha[9];
-      alpha[0] = (1 + omx2) * c0;
-      alpha[1] = (omz + omxomy) * c0;
-      alpha[2] = (-omy + omxomz) * c0;
-      alpha[3] = (-omz + omxomy) * c0;
-      alpha[4] = (1 + omy2) * c0;
-      alpha[5] = (omx + omyomz) * c0;
-      alpha[6] = (omy + omxomz) * c0;
-      alpha[7] = (-omx + omyomz) * c0;
-      alpha[8] = (1 + omz2) * c0;
-
-      {
-        // jHat
-        Real currents[3];
-
-        const Real up1 = up - u0[0];
-        const Real vp1 = vp - u0[1];
-        const Real wp1 = wp - u0[2];
-
-        const Real udotOm1 = up1 * omx + vp1 * omy + wp1 * omz;
-
-        {
-          const Real coef1 = denom * qp;
-          currents[ix_] =
-              (up1 + (vp1 * omz - wp1 * omy + udotOm1 * omx)) * coef1;
-          currents[iy_] =
-              (vp1 + (wp1 * omx - up1 * omz + udotOm1 * omy)) * coef1;
-          currents[iz_] =
-              (wp1 + (up1 * omy - vp1 * omx + udotOm1 * omz)) * coef1;
-        }
+      Real currents[3];
+      get_particle_boris_factor(alpha, currents, p, nodeBMF, u0MF, dt, iLev,
+                                solveInCoMov);
 
         for (int iVar = 0; iVar < 3; iVar++)
           for (int kk = lo.z; kk <= hi.z; ++kk)
@@ -1218,41 +1181,10 @@ void Particles<NStructReal, NStructInt>::calc_mass_matrix_amr(
       const Real omz = qdto2mc * bp[iz_];
 
       // end interpolation
-      const Real omx2 = omx * omx;
-      const Real omy2 = omy * omy;
-      const Real omz2 = omz * omz;
-      const Real omxomy = omx * omy;
-      const Real omxomz = omx * omz;
-      const Real omyomz = omy * omz;
-      const Real omsq = omx2 + omy2 + omz2;
-      const Real denom = 1.0 / (1.0 + omsq);
-
-      const Real c0 = denom * invVol[iLev] * qp * qdto2mc;
-
       Real alpha[9];
-      alpha[0] = (1 + omx2) * c0;
-      alpha[1] = (omz + omxomy) * c0;
-      alpha[2] = (-omy + omxomz) * c0;
-      alpha[3] = (-omz + omxomy) * c0;
-      alpha[4] = (1 + omy2) * c0;
-      alpha[5] = (omx + omyomz) * c0;
-      alpha[6] = (omy + omxomz) * c0;
-      alpha[7] = (-omx + omyomz) * c0;
-      alpha[8] = (1 + omz2) * c0;
-
-      // jHat
       Real currents[3];
-
-      const Real up1 = up - u0[0];
-      const Real vp1 = vp - u0[1];
-      const Real wp1 = wp - u0[2];
-
-      const Real udotOm1 = up1 * omx + vp1 * omy + wp1 * omz;
-
-      const Real coef1 = denom * qp;
-      currents[ix_] = (up1 + (vp1 * omz - wp1 * omy + udotOm1 * omx)) * coef1;
-      currents[iy_] = (vp1 + (wp1 * omx - up1 * omz + udotOm1 * omy)) * coef1;
-      currents[iz_] = (wp1 + (up1 * omy - vp1 * omx + udotOm1 * omz)) * coef1;
+      get_particle_boris_factor(alpha, currents, p, nodeBMF, u0MF, dt, iLev,
+                                solveInCoMov);
 
       for (int iVar = 0; iVar < 3; iVar++)
         for (int kk = lo.z; kk <= hi.z; ++kk)
@@ -1436,40 +1368,10 @@ void Particles<NStructReal, NStructInt>::calc_mass_matrix_new_optimized(
           const Real omz = qdto2mc * bp[iz_];
 
           // end interpolation
-          const Real omsq = (omx * omx + omy * omy + omz * omz);
-          const Real denom = 1.0 / (1.0 + omsq);
-
-          const Real c0 = denom * invVol[iLev] * qp * qdto2mc;
           Real alpha[9];
-          alpha[0] = (1 + omx * omx) * c0;
-          alpha[1] = (omz + omx * omy) * c0;
-          alpha[2] = (-omy + omx * omz) * c0;
-          alpha[3] = (-omz + omx * omy) * c0;
-          alpha[4] = (1 + omy * omy) * c0;
-          alpha[5] = (omx + omy * omz) * c0;
-          alpha[6] = (omy + omx * omz) * c0;
-          alpha[7] = (-omx + omy * omz) * c0;
-          alpha[8] = (1 + omz * omz) * c0;
-
-          {
-            // jHat
-            Real currents[3];
-
-            const Real up1 = up - u0[0];
-            const Real vp1 = vp - u0[1];
-            const Real wp1 = wp - u0[2];
-
-            const Real udotOm1 = up1 * omx + vp1 * omy + wp1 * omz;
-
-            {
-              const Real coef1 = denom * qp;
-              currents[ix_] =
-                  (up1 + (vp1 * omz - wp1 * omy + udotOm1 * omx)) * coef1;
-              currents[iy_] =
-                  (vp1 + (wp1 * omx - up1 * omz + udotOm1 * omy)) * coef1;
-              currents[iz_] =
-                  (wp1 + (up1 * omy - vp1 * omx + udotOm1 * omz)) * coef1;
-            }
+          Real currents[3];
+          get_particle_boris_factor(alpha, currents, p, nodeBMF[iLev],
+                                    u0MF[iLev], dt, iLev, solveInCoMov);
 
             for (int iVar = 0; iVar < 3; iVar++)
               for (int kk = lo.z; kk <= hi.z; ++kk)
@@ -2789,31 +2691,11 @@ void Particles<NStructReal, NStructInt>::charged_particle_mover(
               }
             }
 
-        up = up - u0p[ix_];
-        vp = vp - u0p[iy_];
-        wp = wp - u0p[iz_];
-
-        const Real omx = qdto2mc * bp[ix_];
-        const Real omy = qdto2mc * bp[iy_];
-        const Real omz = qdto2mc * bp[iz_];
-
-        // end interpolation
-        const Real omsq = (omx * omx + omy * omy + omz * omz);
-        const Real denom = 1.0 / (1.0 + omsq);
-        // solve the position equation
-        const Real ut = up + qdto2mc * ep[ix_];
-        const Real vt = vp + qdto2mc * ep[iy_];
-        const Real wt = wp + qdto2mc * ep[iz_];
-        // const pfloat udotb = ut * Bxl + vt * Byl + wt * Bzl;
-        const Real udotOm = ut * omx + vt * omy + wt * omz;
-        // solve the velocity equation
-        const Real uavg = (ut + (vt * omz - wt * omy + udotOm * omx)) * denom;
-        const Real vavg = (vt + (wt * omx - ut * omz + udotOm * omy)) * denom;
-        const Real wavg = (wt + (ut * omy - vt * omx + udotOm * omz)) * denom;
-
-        Real unp1 = 2.0 * uavg - up + u0p[ix_];
-        Real vnp1 = 2.0 * vavg - vp + u0p[iy_];
-        Real wnp1 = 2.0 * wavg - wp + u0p[iz_];
+        Real u[3] = {up - u0p[ix_], vp - u0p[iy_], wp - u0p[iz_]};
+        boris_update(u, nullptr, ep, bp, u0p, qdto2mc, p.rdata(iqp_));
+        Real unp1 = u[ix_] + u0p[ix_];
+        Real vnp1 = u[iy_] + u0p[iy_];
+        Real wnp1 = u[iz_] + u0p[iz_];
 
         if (moveParticlesWithConstantVelocity) {
           unp1 = up;
@@ -5406,6 +5288,116 @@ void Particles<NStructReal, NStructInt>::calculate_particle_quality(
       }
     }
   }
+}
+
+
+template <int NStructReal, int NStructInt>
+void Particles<NStructReal, NStructInt>::boris_update(
+    Real* u, Real* currents, const Real* ep, const Real* bp, const Real* u0,
+    const Real qdto2mc, const Real qp) {
+
+  const Real omx = qdto2mc * bp[ix_];
+  const Real omy = qdto2mc * bp[iy_];
+  const Real omz = qdto2mc * bp[iz_];
+
+  // end interpolation
+  const Real omsq = (omx * omx + omy * omy + omz * omz);
+  const Real denom = 1.0 / (1.0 + omsq);
+  // solve the position equation
+  Real ut = u[ix_];
+  Real vt = u[iy_];
+  Real wt = u[iz_];
+
+  if (ep) {
+    ut += qdto2mc * ep[ix_];
+    vt += qdto2mc * ep[iy_];
+    wt += qdto2mc * ep[iz_];
+  }
+
+  const Real udotOm = ut * omx + vt * omy + wt * omz;
+  // solve the velocity equation
+  const Real uavg = (ut + (vt * omz - wt * omy + udotOm * omx)) * denom;
+  const Real vavg = (vt + (wt * omx - ut * omz + udotOm * omy)) * denom;
+  const Real wavg = (wt + (ut * omy - vt * omx + udotOm * omz)) * denom;
+
+  if (currents) {
+    const Real coef1 = denom * qp;
+    currents[ix_] = uavg * coef1;
+    currents[iy_] = vavg * coef1;
+    currents[iz_] = wavg * coef1;
+  }
+
+  u[ix_] = 2.0 * uavg - u[ix_];
+  u[iy_] = 2.0 * vavg - u[iy_];
+  u[iz_] = 2.0 * wavg - u[iz_];
+}
+
+template <int NStructReal, int NStructInt>
+void Particles<NStructReal, NStructInt>::get_particle_boris_factor(
+    Real* alpha, Real* currents, const Particle<NStructReal, NStructInt>& p,
+    const MultiFab& nodeBMF, const MultiFab& u0MF, Real dt, int iLev,
+    bool solveInCoMov) {
+
+  const Real up = p.rdata(iup_);
+  const Real vp = p.rdata(ivp_);
+  const Real wp = p.rdata(iwp_);
+  const Real qp = p.rdata(iqp_);
+
+  //-----calculate interpolate coef begin-------------
+  IntVect loIdx;
+  RealVect dShift;
+  find_node_index(p.pos(), Geom(iLev).ProbLo(), Geom(iLev).InvCellSize(), loIdx,
+                  dShift);
+  Real coef[2][2][2];
+  linear_interpolation_coef(dShift, coef);
+  //-----calculate interpolate coef end-------------
+
+  //----- Mass matrix calculation begin--------------
+  Real u0[3] = {0, 0, 0};
+  Real bp[3] = {0, 0, 0};
+
+  const Dim3 lo = init_dim3(0);
+  const Dim3 hi = init_dim3(1);
+
+  Array4<Real const> const& nodeBArr = nodeBMF.array();
+  Array4<Real const> const& u0Arr = u0MF.array();
+
+  for (int kk = lo.z; kk <= hi.z; ++kk)
+    for (int jj = lo.y; jj <= hi.y; ++jj)
+      for (int ii = lo.x; ii <= hi.x; ++ii) {
+        const IntVect ijk = {AMREX_D_DECL(loIdx[ix_] + ii, loIdx[iy_] + jj,
+                                          loIdx[iz_] + kk)};
+        for (int iDim = 0; iDim < nDim3; iDim++) {
+          bp[iDim] += nodeBArr(ijk, iDim) * coef[ii][jj][kk];
+
+          if (solveInCoMov)
+            u0[iDim] += u0Arr(ijk, iDim) * coef[ii][jj][kk];
+        }
+      }
+
+  const Real qdto2mc = charge / mass * 0.5 * dt;
+  const Real omx = qdto2mc * bp[ix_];
+  const Real omy = qdto2mc * bp[iy_];
+  const Real omz = qdto2mc * bp[iz_];
+
+  // end interpolation
+  const Real omsq = (omx * omx + omy * omy + omz * omz);
+  const Real denom = 1.0 / (1.0 + omsq);
+
+  const Real c0 = denom * invVol[iLev] * qp * qdto2mc;
+
+  alpha[0] = (1 + omx * omx) * c0;
+  alpha[1] = (omz + omx * omy) * c0;
+  alpha[2] = (-omy + omx * omz) * c0;
+  alpha[3] = (-omz + omx * omy) * c0;
+  alpha[4] = (1 + omy * omy) * c0;
+  alpha[5] = (omx + omy * omz) * c0;
+  alpha[6] = (omy + omx * omz) * c0;
+  alpha[7] = (-omx + omy * omz) * c0;
+  alpha[8] = (1 + omz * omz) * c0;
+
+  Real u[3] = {up - u0[ix_], vp - u0[iy_], wp - u0[iz_]};
+  boris_update(u, currents, nullptr, bp, u0, qdto2mc, qp);
 }
 
 template <int NStructReal, int NStructInt>

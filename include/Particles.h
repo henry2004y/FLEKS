@@ -398,6 +398,16 @@ public:
 
   void neutral_mover(amrex::Real dt);
 
+  void get_particle_boris_factor(
+      amrex::Real* alpha, amrex::Real* currents,
+      const amrex::Particle<NStructReal, NStructInt>& p,
+      const amrex::MultiFab& nodeBMF, const amrex::MultiFab& u0MF,
+      amrex::Real dt, int iLev, bool solveInCoMov);
+
+  void boris_update(amrex::Real* u, amrex::Real* currents, const amrex::Real* ep,
+                    const amrex::Real* bp, const amrex::Real* u0,
+                    const amrex::Real qdto2mc, const amrex::Real qp);
+
   void update_position_to_half_stage(const amrex::MultiFab& nodeEMF,
                                      const amrex::MultiFab& nodeBMF,
                                      amrex::Real dt);
