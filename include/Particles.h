@@ -398,6 +398,8 @@ public:
 
   void neutral_mover(amrex::Real dt);
 
+  void apply_reflecting_bc(ParticleType& p, int iLev);
+
   void update_position_to_half_stage(const amrex::MultiFab& nodeEMF,
                                      const amrex::MultiFab& nodeBMF,
                                      amrex::Real dt);

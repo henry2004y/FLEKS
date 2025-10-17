@@ -375,6 +375,9 @@ public:
   void apply_BC(const amrex::iMultiFab &status, amrex::MultiFab &mf,
                 const int iStart, const int nComp, GETVALUE func,
                 const int iLev, const BC *bc = nullptr);
+  void apply_BC_for_E(const amrex::iMultiFab& status, amrex::MultiFab& mf,
+                      const int iStart, const int nComp, GETVALUE func,
+                      const int iLev, const BC *bc = nullptr);
 
   bool use_float(const int i, const int j, const int k, int &ip, int &jp,
                  int &kp, const BC &bc, const amrex::Box &bxValid) {

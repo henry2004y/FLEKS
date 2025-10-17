@@ -21,6 +21,7 @@ public:
   static const int outflow = 2;
   static const int vacume = 3;
   static const int reflected = 4;
+  static const int conducting_wall = 5;
 
   amrex::IntVect lo;
   amrex::IntVect hi;
@@ -38,6 +39,8 @@ public:
       return vacume;
     else if (str == "reflected")
       return reflected;
+    else if (str == "conducting_wall")
+      return conducting_wall;
     else
       return unset;
   }

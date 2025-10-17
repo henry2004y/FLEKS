@@ -532,7 +532,7 @@ void Pic::fill_E_B_fields() {
   nodeB[0].FillBoundary(Geom(0).periodicity());
   centerB[0].FillBoundary(Geom(0).periodicity());
   apply_BC(nodeStatus[0], nodeB[0], 0, nDim3, &Pic::get_node_B, 0, &bcBField);
-  apply_BC(nodeStatus[0], nodeE[0], 0, nDim3, &Pic::get_node_E, 0);
+  apply_BC_for_E(nodeStatus[0], nodeE[0], 0, nDim3, &Pic::get_node_E, 0, &bcBField);
   apply_BC(cellStatus[0], centerB[0], 0, centerB[0].nComp(), &Pic::get_center_B,
            0, &bcBField);
 
@@ -2391,7 +2391,25 @@ void Pic::apply_BC(const iMultiFab& status, MultiFab& mf, const int iStart,
             int ip, jp, kp;
             bool useFloat = use_float(i, j, k, ip, jp, kp, *bc, bxValid);
 
-            if (useFloat) {
+            if (bc->lo[ix_] == BC::conducting_wall ||
+                bc->hi[ix_] == BC::conducting_wall ||
+                bc->lo[iy_] == BC::conducting_wall ||
+                bc->hi[iy_] == BC::conducting_wall ||
+                bc->lo[iz_] == BC::conducting_wall ||
+                bc->hi[iz_] == BC::conducting_wall) {
+              for (int iVar = iStart; iVar < iStart + nComp; iVar++) {
+                if ((bc->lo[ix_] == BC::conducting_wall && i < bxValid.smallEnd(ix_) && iVar == ix_) ||
+                    (bc->hi[ix_] == BC::conducting_wall && i > bxValid.bigEnd(ix_) && iVar == ix_) ||
+                    (bc->lo[iy_] == BC::conducting_wall && j < bxValid.smallEnd(iy_) && iVar == iy_) ||
+                    (bc->hi[iy_] == BC::conducting_wall && j > bxValid.bigEnd(iy_) && iVar == iy_) ||
+                    (bc->lo[iz_] == BC::conducting_wall && k < bxValid.smallEnd(iz_) && iVar == iz_) ||
+                    (bc->hi[iz_] == BC::conducting_wall && k > bxValid.bigEnd(iz_) && iVar == iz_)) {
+                  arr(i, j, k, iVar) = 0.0; // Normal component is zero
+                } else {
+                  arr(i, j, k, iVar) = arr(ip, jp, kp, iVar); // Tangential component is extrapolated
+                }
+              }
+            } else if (useFloat) {
               for (int iVar = iStart; iVar < iStart + nComp; iVar++) {
                 arr(i, j, k, iVar) = arr(ip, jp, kp, iVar);
               }
@@ -2474,6 +2492,83 @@ void Pic::apply_BC(const iMultiFab& status, MultiFab& mf, const int iStart,
   }
 }
 
+//==========================================================
+void Pic::apply_BC_for_E(const iMultiFab& status, MultiFab& mf, const int iStart,
+                         const int nComp, GETVALUE func, const int iLev,
+                         const BC* bc) {
+  std::string nameFunc = "Pic::apply_BC_for_E";
+  timing_func(nameFunc);
+
+  if (Geom(iLev).isAllPeriodic())
+    return;
+  if (mf.nGrow() == 0)
+    return;
+
+  bool useFloatBC = (func == nullptr);
+
+  // BoxArray ba = mf.boxArray();
+  BoxArray ba = convert(activeRegion, mf.boxArray().ixType());
+
+  const IntVect& ngrow = mf.nGrowVect();
+  if (nDim > 2 &&
+      Geom(iLev).Domain().bigEnd(iz_) == Geom(iLev).Domain().smallEnd(iz_)) {
+    ba.grow(iz_, ngrow[iz_]);
+  }
+
+  if (bc != nullptr) {
+    for (MFIter mfi(mf); mfi.isValid(); ++mfi) {
+      const Box& bxFab = mfi.fabbox();
+      Box bxValid = mfi.validbox();
+
+      //! if there are cells not in the valid + periodic grown box
+      //! we need to fill them here
+      if (!ba.contains(bxFab)) {
+        Array4<Real> const& arr = mf[mfi].array();
+
+        const Array4<const int>& statusArr = status[mfi].array();
+
+        ParallelFor(bxFab, [&](int i, int j, int k) {
+          if (bit::is_lev_boundary(statusArr(i, j, k, 0))) {
+
+            int ip, jp, kp;
+            bool useFloat = use_float(i, j, k, ip, jp, kp, *bc, bxValid);
+
+            if (bc->lo[ix_] == BC::conducting_wall ||
+                bc->hi[ix_] == BC::conducting_wall ||
+                bc->lo[iy_] == BC::conducting_wall ||
+                bc->hi[iy_] == BC::conducting_wall ||
+                bc->lo[iz_] == BC::conducting_wall ||
+                bc->hi[iz_] == BC::conducting_wall) {
+              for (int iVar = iStart; iVar < iStart + nComp; iVar++) {
+                if ((bc->lo[ix_] == BC::conducting_wall && i < bxValid.smallEnd(ix_) && iVar != ix_) ||
+                    (bc->hi[ix_] == BC::conducting_wall && i > bxValid.bigEnd(ix_) && iVar != ix_) ||
+                    (bc->lo[iy_] == BC::conducting_wall && j < bxValid.smallEnd(iy_) && iVar != iy_) ||
+                    (bc->hi[iy_] == BC::conducting_wall && j > bxValid.bigEnd(iy_) && iVar != iy_) ||
+                    (bc->lo[iz_] == BC::conducting_wall && k < bxValid.smallEnd(iz_) && iVar != iz_) ||
+                    (bc->hi[iz_] == BC::conducting_wall && k > bxValid.bigEnd(iz_) && iVar != iz_)) {
+                  arr(i, j, k, iVar) = 0.0; // Tangential component is zero
+                } else {
+                  arr(i, j, k, iVar) = arr(ip, jp, kp, iVar); // Normal component is extrapolated
+                }
+              }
+            } else if (useFloat) {
+              for (int iVar = iStart; iVar < iStart + nComp; iVar++) {
+                arr(i, j, k, iVar) = arr(ip, jp, kp, iVar);
+              }
+            } else {
+              for (int iVar = iStart; iVar < iStart + nComp; iVar++) {
+                arr(i, j, k, iVar) = (this->*func)(
+                    mfi, IntVect{ AMREX_D_DECL(i, j, k) }, iVar - iStart, iLev);
+              }
+            }
+          }
+        });
+      }
+    }
+
+    return;
+  }
+}
 //==========================================================
 Real Pic::calc_E_field_energy() {
   Real sum = 0;
