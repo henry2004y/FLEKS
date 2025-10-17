@@ -20,6 +20,7 @@ public:
   static const int coupled = 1;
   static const int outflow = 2;
   static const int vacume = 3;
+  static const int reflected = 4;
 
   amrex::IntVect lo;
   amrex::IntVect hi;
@@ -35,6 +36,8 @@ public:
       return outflow;
     else if (str == "vacume")
       return vacume;
+    else if (str == "reflected")
+      return reflected;
     else
       return unset;
   }

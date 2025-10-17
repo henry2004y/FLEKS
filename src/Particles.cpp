@@ -2837,7 +2837,22 @@ void Particles<NStructReal, NStructInt>::charged_particle_mover(
 
         // Mark for deletion
         if (is_outside_active_region(p, status, lowCorner, highCorner, iLev)) {
-          p.id() = -1;
+          bool isReflected = false;
+          for (int iDim = 0; iDim < nDim; iDim++) {
+            if (p.pos(iDim) < plo[iLev][iDim] && bc.lo[iDim] == BC::reflected) {
+              p.pos(iDim) = 2.0 * plo[iLev][iDim] - p.pos(iDim);
+              p.rdata(iup_ + iDim) = -p.rdata(iup_ + iDim);
+              isReflected = true;
+            }
+            if (p.pos(iDim) > phi[iLev][iDim] && bc.hi[iDim] == BC::reflected) {
+              p.pos(iDim) = 2.0 * phi[iLev][iDim] - p.pos(iDim);
+              p.rdata(iup_ + iDim) = -p.rdata(iup_ + iDim);
+              isReflected = true;
+            }
+          }
+          if (!isReflected) {
+            p.id() = -1;
+          }
         }
       } // for p
     } // for pti
@@ -2925,7 +2940,22 @@ void Particles<NStructReal, NStructInt>::neutral_mover(Real dt) {
 
         // Mark for deletion
         if (is_outside_active_region(p, status, lowCorner, highCorner, iLev)) {
-          p.id() = -1;
+          bool isReflected = false;
+          for (int iDim = 0; iDim < nDim; iDim++) {
+            if (p.pos(iDim) < plo[iLev][iDim] && bc.lo[iDim] == BC::reflected) {
+              p.pos(iDim) = 2.0 * plo[iLev][iDim] - p.pos(iDim);
+              p.rdata(iup_ + iDim) = -p.rdata(iup_ + iDim);
+              isReflected = true;
+            }
+            if (p.pos(iDim) > phi[iLev][iDim] && bc.hi[iDim] == BC::reflected) {
+              p.pos(iDim) = 2.0 * phi[iLev][iDim] - p.pos(iDim);
+              p.rdata(iup_ + iDim) = -p.rdata(iup_ + iDim);
+              isReflected = true;
+            }
+          }
+          if (!isReflected) {
+            p.id() = -1;
+          }
         }
       } // for p
     } // for pti
