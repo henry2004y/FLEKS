@@ -15,6 +15,7 @@ SRCS := \
 	FluidInterface.cpp \
 	Pic.cpp \
 	PicIO.cpp \
+	Exosphere.cpp \
 	Grid.cpp  \
 	DataContainer.cpp \
 	VisitWriter.cpp  \

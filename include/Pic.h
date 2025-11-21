@@ -15,6 +15,7 @@
 #include "SourceInterface.h"
 #include "TimeCtr.h"
 #include "UMultiFab.h"
+#include "Exosphere.h"
 
 class ParticleTracker;
 class Pic;
@@ -57,6 +58,7 @@ private:
   FluidInterface *sourcePT2OH = nullptr;
   SourceInterface *source = nullptr;
   TimeCtr *tc = nullptr;
+  Exosphere *exosphere = nullptr;
 
   amrex::Vector<amrex::MultiFab> nodeE;
   amrex::Vector<amrex::MultiFab> nodeEth;
@@ -213,7 +215,10 @@ public:
     pMode = PartMode::Neutral;
 #endif
   };
-  ~Pic() {};
+  ~Pic() {
+    if (exosphere)
+      delete exosphere;
+  };
 
   void update(bool doReportIn = false);
 

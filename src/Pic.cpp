@@ -195,6 +195,11 @@ void Pic::read_param(const std::string& command, ReadParam& param) {
     if (doSelectParticle) {
       param.read_var("selectParticleInputFile", selectParticleInputFile);
     }
+  } else if (command == "#EXOSPHERE") {
+    if (!exosphere) {
+        exosphere = new Exosphere(this);
+    }
+    exosphere->read_param(command, param);
   }
 }
 
@@ -202,6 +207,10 @@ void Pic::read_param(const std::string& command, ReadParam& param) {
 void Pic::post_process_param() {
   fi->set_plasma_charge_and_mass(qomEl);
   nSpecies = fi->get_nS();
+
+  if (exosphere) {
+      exosphere->initialize();
+  }
 }
 
 //==========================================================
