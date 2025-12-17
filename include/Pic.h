@@ -45,6 +45,8 @@ private:
   bool solveEM = true;
   bool initEM = true;
 
+  bool useHybridPIC = false;
+
   bool useExplicitPIC = false;
   bool projectDownEmFields = true;
   bool skipMassMatrix = false;
@@ -271,6 +273,8 @@ public:
       return;
 
     for (auto &pts : parts) {
+      if (useHybridPIC && pts->get_charge() < 0)
+        continue;
       pts->add_particles_domain();
     }
   }
@@ -280,6 +284,8 @@ public:
       return;
 
     for (auto &pts : parts) {
+      if (useHybridPIC && pts->get_charge() < 0)
+        continue;
       pts->inject_particles_at_boundary();
     }
   }
@@ -297,6 +303,7 @@ public:
   void update_E();
   void update_E_impl();
   void update_E_expl();
+  void update_E_hybrid();
   void update_E_rhs(double *rhos, int iLev);
   void update_E_matvec(const double *vecIn, double *vecOut, int iLev,
                        const bool useZeroBC = true);

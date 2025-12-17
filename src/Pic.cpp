@@ -20,6 +20,8 @@ void Pic::read_param(const std::string& command, ReadParam& param) {
     param.read_var("usePIC", usePIC);
   } else if (command == "#SOLVEEM") {
     param.read_var("solveEM", solveEM);
+  } else if (command == "#HYBRIDPIC") {
+    param.read_var("useHybridPIC", useHybridPIC);
   } else if (command == "#PARTMODE") {
     std::string s;
     param.read_var("partMode", s);
@@ -202,6 +204,10 @@ void Pic::read_param(const std::string& command, ReadParam& param) {
 void Pic::post_process_param() {
   fi->set_plasma_charge_and_mass(qomEl);
   nSpecies = fi->get_nS();
+
+  if (useHybridPIC) {
+    solveEM = false;
+  }
 }
 
 //==========================================================
@@ -573,6 +579,8 @@ void Pic::fill_source_particles() {
   doSelectRegion = (nSpecies == 4);
 #endif
   for (int i = 0; i < nSpecies; ++i) {
+    if (useHybridPIC && parts[i]->get_charge() < 0)
+      continue;
     parts[i]->add_particles_source(source, stateOH, tc->get_dt(), nSourcePPC,
                                    doSelectRegion, adaptiveSourcePPC);
   }
@@ -642,10 +650,14 @@ void Pic::particle_mover() {
   Real dtnext = tc->get_next_dt();
 
   for (int i = 0; i < nSpecies; ++i) {
+    if (useHybridPIC && parts[i]->get_charge() < 0)
+      continue;
     parts[i]->mover(nodeEth, nodeB, eBg, uBg, dt, dtnext);
   }
 
   for (int i = 0; i < nSpecies; ++i) {
+    if (useHybridPIC && parts[i]->get_charge() < 0)
+      continue;
     parts[i]->redistribute_particles();
   }
 }
@@ -1299,6 +1311,8 @@ void Pic::update(bool doReportIn) {
 
   if (solveEM) {
     update_E();
+  } else if (useHybridPIC) {
+    update_E_hybrid();
   }
 
   particle_mover();
@@ -1485,6 +1499,58 @@ void Pic::update_E_expl() {
 
     nodeE[iLev].FillBoundary(Geom(iLev).periodicity());
     apply_BC(nodeStatus[iLev], nodeE[iLev], 0, nDim3, &Pic::get_node_E, iLev);
+  }
+}
+
+//==========================================================
+void Pic::update_E_hybrid() {
+  std::string nameFunc = "Pic::update_E_hybrid";
+  timing_func(nameFunc);
+
+  // E = -U_i x B
+  // U_i = P_i / rho_i
+  // nodePlasma[nSpecies] contains the total moments sumed from all species.
+
+  for (int iLev = 0; iLev < n_lev(); iLev++) {
+    for (MFIter mfi(nodeE[iLev]); mfi.isValid(); ++mfi) {
+      const Box& box = mfi.validbox();
+      const Array4<Real>& arrE = nodeE[iLev][mfi].array();
+      const Array4<Real>& arrEth = nodeEth[iLev][mfi].array();
+      const Array4<Real const>& arrB = nodeB[iLev][mfi].array();
+      const Array4<Real const>& moments =
+          nodePlasma[nSpecies][iLev][mfi].array();
+
+      ParallelFor(box, [&](int i, int j, int k) {
+        Real rho = moments(i, j, k, iRho_);
+        Real ui = 0, vi = 0, wi = 0;
+
+        if (rho > 0) {
+          ui = moments(i, j, k, iUx_) / rho;
+          vi = moments(i, j, k, iUy_) / rho;
+          wi = moments(i, j, k, iUz_) / rho;
+        }
+
+        Real bx = arrB(i, j, k, ix_);
+        Real by = arrB(i, j, k, iy_);
+        Real bz = arrB(i, j, k, iz_);
+
+        // E = - u x B
+        arrE(i, j, k, ix_) = -(vi * bz - wi * by);
+        arrE(i, j, k, iy_) = -(wi * bx - ui * bz);
+        arrE(i, j, k, iz_) = -(ui * by - vi * bx);
+
+        // Copy to Eth
+        arrEth(i, j, k, ix_) = arrE(i, j, k, ix_);
+        arrEth(i, j, k, iy_) = arrE(i, j, k, iy_);
+        arrEth(i, j, k, iz_) = arrE(i, j, k, iz_);
+      });
+    }
+
+    nodeE[iLev].FillBoundary(Geom(iLev).periodicity());
+    nodeEth[iLev].FillBoundary(Geom(iLev).periodicity());
+
+    apply_BC(nodeStatus[iLev], nodeE[iLev], 0, nDim3, &Pic::get_node_E, iLev);
+    apply_BC(nodeStatus[iLev], nodeEth[iLev], 0, nDim3, &Pic::get_node_E, iLev);
   }
 }
 
