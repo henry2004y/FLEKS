@@ -183,7 +183,7 @@ inline void CheckRefinementProximity(bool b[3][3][3], amrex::IntVect iv,
 }
 
 inline bool SkipParticleForDivECleaning(
-    amrex::RealVect xyz, amrex::Geometry Geom,
+    amrex::RealVect xyz, amrex::Geometry Geom,int iLev,
     const amrex::Array4<int const>& status) {
 
   bool skip = false;
@@ -194,6 +194,11 @@ inline bool SkipParticleForDivECleaning(
   if (bit::is_refined(status(iv)) || bit::is_lev_boundary(status(iv))) {
     skip = true;
   }
+  if (iLev==0 && bit::is_lev_edge(status(iv)))
+  {
+    skip = true;
+  }
+
   if (bit::is_refined_neighbour(status(iv))) {
     bool b[3][3][3] = { false };
     amrex::Real fac = 0.25;
@@ -213,6 +218,53 @@ inline bool SkipParticleForDivECleaning(
   }
 
   return skip;
+}
+
+inline void smooth_mf_exp(amrex::MultiFab& mf, const amrex::iMultiFab& status) {
+  BL_PROFILE("smoothMF");
+  if (mf.empty())
+    return;
+
+  int nComp = mf.nComp();
+  // Create a temporary copy with one layer of ghost cells so neighbors are
+  // available.
+  amrex::MultiFab tmp(mf.boxArray(), mf.DistributionMap(), nComp, 1);
+  tmp.setVal(0.0);
+  // ParallelCopy from mf into tmp, filling one ghost layer
+  tmp.ParallelCopy(mf, 0, 0, nComp, 0, 1);
+  // Also fill physical boundary ghosts if present
+  tmp.FillBoundary();
+
+  for (amrex::MFIter mfi(mf); mfi.isValid(); ++mfi) {
+    const auto& box = mfi.validbox(); // include ghosts in tmp access
+    const auto& lo = amrex::lbound(box);
+    const auto& hi = amrex::ubound(box);
+
+    const auto arr = mf.array(mfi);
+    const auto t = tmp.array(mfi);
+    const auto s = status[mfi].array();
+
+    for (int j = lo.y; j <= hi.y; ++j) {
+      for (int i = lo.x; i <= hi.x; ++i) {
+        for (int comp = 0; comp < nComp; ++comp) {
+          amrex::Real sum = 0.0;
+          int count = 0;
+          for (int jj = j - 1; jj <= j + 1; ++jj) {
+            for (int ii = i - 1; ii <= i + 1; ++ii) {
+              if (!bit::is_lev_boundary(s(ii, jj, 0))) {
+                sum += t(ii, jj, 0, comp);
+                ++count;
+              }
+            }
+          }
+          if (count > 0) {
+            sum = sum / static_cast<amrex::Real>(count);
+            arr(i, j, 0, comp) = 0.5 * (sum + t(i, j, 0, comp));
+          }
+        }
+      }
+    }
+  }
 }
 
 inline amrex::Real get_value_at_loc(const amrex::MultiFab& mf,
@@ -469,7 +521,7 @@ void skip_cells_divE_correction(amrex::FabArray<FAB>& dst,
         for (int k = lo.z; k <= hi.z; ++k)
           for (int j = lo.y; j <= hi.y; ++j)
             for (int i = lo.x; i <= hi.x; ++i) {
-              if (bit::is_lev_edge(statusArr(i, j, k)) ||
+              if (//bit::is_lev_edge(statusArr(i, j, k)) ||
                   bit::is_refined(statusArr(i, j, k))) {
                 data(i, j, k, iVar) = 0.0;
               }
